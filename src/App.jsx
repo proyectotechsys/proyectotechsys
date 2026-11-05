@@ -264,8 +264,6 @@ export function AppProvider({ children }) {
       numero_factura: numRemisionGenerado,
       cliente_nombre: orden.cliente_nombre,
       cliente_telefono: telCliente,
-      cliente_email: cliEncontrado?.email || '',
-      cliente_direccion: cliEncontrado?.direccion || '',
       fecha: new Date().toISOString().split('T')[0],
       total: totalFinalFac,
       costo_compra: costoTotalCompraAsociada,
@@ -302,8 +300,6 @@ export function AppProvider({ children }) {
       numero_factura: numRemisionGenerado,
       cliente_nombre: nombreCliente,
       cliente_telefono: telefonoCliente,
-      cliente_email: clienteObj?.email || '',
-      cliente_direccion: clienteObj?.direccion || '',
       fecha: new Date().toISOString().split('T')[0],
       total: totalCalculado,
       costo_compra: costoCompraTotal || 0,
@@ -317,7 +313,11 @@ export function AppProvider({ children }) {
       setFacturas(prev => [insertada[0], ...prev]); 
       return insertada[0]; 
     } else {
-      alert('Error al generar la orden de servicio directa.');
+      console.error('Error de Supabase al generar la orden de servicio directa:', error);
+      const detalle = error
+        ? [error.message, error.details, error.hint, error.code].filter(Boolean).join(' | ')
+        : 'Supabase no devolvió el registro insertado.';
+      alert('No se pudo guardar la orden de servicio directa. Detalle: ' + detalle);
     }
   };
 
