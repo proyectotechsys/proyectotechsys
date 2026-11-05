@@ -31,7 +31,7 @@ export function AppProvider({ children }) {
       if (resEmp.data && resEmp.data.length > 0) {
         setEmpresa({ 
           ...resEmp.data[0], 
-          email: resEmp.data[0].email || 'contacto@syspcdoctor.com',
+          email: resEmp.data[0].email || '',
           logoUrl: resEmp.data[0].logo_url,
           rutaDescargaPdf: resEmp.data[0].ruta_descarga_pdf || 'Descargas predeterminadas del navegador'
         });
@@ -227,7 +227,7 @@ export function AppProvider({ children }) {
     const telCliente = cliEncontrado ? cliEncontrado.telefono : (orden.cliente_telefono || 'N/A');
     
     const consecutivoNum = 10001 + facturas.length;
-    const numRemisionGenerado = `REM-${consecutivoNum}`;
+    const numRemisionGenerado = `ORD-${consecutivoNum}`;
     const valorCobro = orden.total_pagar > 0 ? orden.total_pagar : (orden.valor_estimado || 0);
 
     const falloStr = orden.fallo_reportado || orden.falla_reportado || 'N/A';
@@ -264,6 +264,8 @@ export function AppProvider({ children }) {
       numero_factura: numRemisionGenerado,
       cliente_nombre: orden.cliente_nombre,
       cliente_telefono: telCliente,
+      cliente_email: cliEncontrado?.email || '',
+      cliente_direccion: cliEncontrado?.direccion || '',
       fecha: new Date().toISOString().split('T')[0],
       total: totalFinalFac,
       costo_compra: costoTotalCompraAsociada,
@@ -279,7 +281,7 @@ export function AppProvider({ children }) {
       return insertada[0];
     } else {
       console.error(error);
-      alert('Error al generar la remisión.');
+      alert('Error al generar la orden de servicio.');
       return null;
     }
   };
@@ -289,7 +291,7 @@ export function AppProvider({ children }) {
     const telefonoCliente = clienteObj ? (clienteObj.telefono || 'N/A') : 'N/A';
     
     const consecutivoNum = 10001 + facturas.length;
-    const numRemisionGenerado = `REM-${consecutivoNum}`;
+    const numRemisionGenerado = `ORD-${consecutivoNum}`;
 
     const itemsConGarantia = [...itemsArray];
     if (garantiaAplica) {
@@ -300,6 +302,8 @@ export function AppProvider({ children }) {
       numero_factura: numRemisionGenerado,
       cliente_nombre: nombreCliente,
       cliente_telefono: telefonoCliente,
+      cliente_email: clienteObj?.email || '',
+      cliente_direccion: clienteObj?.direccion || '',
       fecha: new Date().toISOString().split('T')[0],
       total: totalCalculado,
       costo_compra: costoCompraTotal || 0,
@@ -313,17 +317,17 @@ export function AppProvider({ children }) {
       setFacturas(prev => [insertada[0], ...prev]); 
       return insertada[0]; 
     } else {
-      alert('Error al generar la remisión directa.');
+      alert('Error al generar la orden de servicio directa.');
     }
   };
 
   const cancelarRemision = async (factura, motivo, nombreUsuario) => {
     if (!factura?.id) {
-      alert('No se encontró el registro de la remisión.');
+      alert('No se encontró el registro de la orden de servicio.');
       return false;
     }
     if (facturaEstaCancelada(factura)) {
-      alert('Esta remisión ya está cancelada.');
+      alert('Esta orden de servicio ya está cancelada.');
       return false;
     }
     const motivoFinal = String(motivo || '').trim();
@@ -353,8 +357,8 @@ export function AppProvider({ children }) {
       .single();
 
     if (error || !actualizado) {
-      console.error('Error cancelando remisión:', error);
-      alert(`No se pudo cancelar la remisión. ${error?.message || 'Intenta nuevamente.'}`);
+      console.error('Error cancelando orden de servicio:', error);
+      alert(`No se pudo cancelar la orden de servicio. ${error?.message || 'Intenta nuevamente.'}`);
       return false;
     }
 
@@ -556,7 +560,7 @@ function MainApp() {
     tipo: 'AMBOS'
   });
 
-  // Estados nuevos para búsqueda y ordenamiento por fecha en Remisiones y Ventas
+  // Estados nuevos para búsqueda y ordenamiento por fecha en Órdenes de Servicio y Ventas
   const [facturasFiltroInicio, setFacturasFiltroInicio] = useState('');
   const [facturasFiltroFin, setFacturasFiltroFin] = useState('');
   const [facturasOrdenFecha, setFacturasOrdenFecha] = useState('recientes'); // 'recientes' o 'antiguas'
@@ -911,7 +915,7 @@ function MainApp() {
     }
 
     let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; 
-    csvContent += "Remision/Documento,Fecha,Tipo,Cliente,Telefono,Vendedor,Costo Invertido,Total Venta,Utilidad Real\n";
+    csvContent += "Orden de Servicio/Documento,Fecha,Tipo,Cliente,Telefono,Asesor,Costo Invertido,Total Venta,Utilidad Real\n";
 
     let sumaTotalVentas = 0;
     let sumaTotalCostos = 0;
@@ -935,7 +939,7 @@ function MainApp() {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `reporte_financiero_remisiones_${fechaInicio}_al_${fechaFin}.csv`);
+    link.setAttribute("download", `reporte_financiero_órdenes de servicio_${fechaInicio}_al_${fechaFin}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -968,7 +972,7 @@ function MainApp() {
   // Indicadores del dashboard: se calculan con los registros que ya carga AppProvider.
   const facturasValidas = facturas.filter(f => !facturaEstaCancelada(f));
   const totalFacturado = facturasValidas.reduce((suma, f) => suma + (Number(f.total) || 0), 0);
-  // Utilidad estimada registrada: venta menos costo asociado guardado en cada remisión.
+  // Utilidad estimada registrada: venta menos costo asociado guardado en cada orden de servicio.
   const utilidadTotalDashboard = facturasValidas.reduce((suma, f) => suma + (Number(f.total || 0) - Number(f.costo_compra || 0)), 0);
   const contarEstado = (...estados) => ordenes.filter(o => estados.includes(String(o.estado || '').trim())).length;
   const estadoDashboard = [
@@ -1139,7 +1143,7 @@ function MainApp() {
             {permisos.crear_orden && <button onClick={() => setTab('nueva_orden')} className={`w-full text-left p-3 rounded-xl transition ${tab === 'nueva_orden' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' : 'text-slate-400 hover:bg-slate-800'}`}>➕ Orden de Entrada/Taller</button>}
             <button onClick={() => setTab('ordenes')} className={`w-full text-left p-3 rounded-xl transition ${tab === 'ordenes' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' : 'text-slate-400 hover:bg-slate-800'}`}>🛠️ Reparaciones y Estado</button>
             {permisos.ver_clientes && <button onClick={() => setTab('clientes')} className={`w-full text-left p-3 rounded-xl transition ${tab === 'clientes' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' : 'text-slate-400 hover:bg-slate-800'}`}>👥 Directorio de Clientes</button>}
-            {permisos.facturar && <button onClick={() => setTab('facturacion')} className={`w-full text-left p-3 rounded-xl transition ${tab === 'facturacion' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' : 'text-slate-400 hover:bg-slate-800'}`}>🧾 Remisiones y Ventas</button>}
+            {permisos.facturar && <button onClick={() => setTab('facturacion')} className={`w-full text-left p-3 rounded-xl transition ${tab === 'facturacion' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' : 'text-slate-400 hover:bg-slate-800'}`}>🧾 Órdenes de Servicio y Ventas</button>}
             {permisos.facturar && <button onClick={() => setTab('compras')} className={`w-full text-left p-3 rounded-xl transition ${tab === 'compras' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' : 'text-slate-400 hover:bg-slate-800'}`}>🛒 Compras y Gastos</button>}
             <button onClick={() => { setTab('cotizador'); setCotizacionActiva(null); }} className={`w-full text-left p-3 rounded-xl transition ${tab === 'cotizador' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' : 'text-slate-400 hover:bg-slate-800'}`}>📝 Cotizador</button>
             <button onClick={() => setTab('portal')} className={`w-full text-left p-3 rounded-xl transition ${tab === 'portal' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' : 'text-slate-400 hover:bg-slate-800'}`}>🔍 Portal Consulta Cliente</button>
@@ -1219,13 +1223,13 @@ function MainApp() {
 
             <section className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
               <div className="flex items-center justify-between gap-3 mb-4">
-                <div><h3 className="font-bold text-white">Ingresos Recientes</h3><p className="text-[11px] text-slate-500 mt-1">Últimas remisiones registradas, excluyendo canceladas</p></div>
+                <div><h3 className="font-bold text-white">Ingresos Recientes</h3><p className="text-[11px] text-slate-500 mt-1">Últimas órdenes de servicio registradas, excluyendo canceladas</p></div>
                 <button onClick={() => setTab('facturacion')} className="text-cyan-400 hover:text-cyan-300 text-xs font-bold">Ver todas →</button>
               </div>
               <div className="space-y-2">
                 {ingresosRecientesDashboard.length ? ingresosRecientesDashboard.map(f => (
                   <div key={f.id} className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 last:border-0 pb-2 last:pb-0">
-                    <div><p className="text-xs font-semibold text-white">{f.numero_factura || 'Remisión'}</p><p className="text-[11px] text-slate-400">{f.cliente_nombre || 'Cliente'} · {f.fecha || 'Sin fecha'}</p></div>
+                    <div><p className="text-xs font-semibold text-white">{f.numero_factura || 'Orden de Servicio'}</p><p className="text-[11px] text-slate-400">{f.cliente_nombre || 'Cliente'} · {f.fecha || 'Sin fecha'}</p></div>
                     <p className="text-sm font-bold text-emerald-400">{formatoCOP(f.total)}</p>
                   </div>
                 )) : <p className="text-xs text-slate-500">Todavía no hay ingresos facturados.</p>}
@@ -1429,7 +1433,7 @@ function MainApp() {
                             <span className="text-emerald-400 text-[11px] block">Total Pagar: {o.total_pagar ? `$ ${Number(o.total_pagar).toLocaleString('es-CO')}` : '-'}</span>
                           </div>
                           {o.numero_factura_asociada && (
-                            <span className="block text-[11px] text-indigo-400 font-mono mt-1">Remisión: {o.numero_factura_asociada}</span>
+                            <span className="block text-[11px] text-indigo-400 font-mono mt-1">Orden de Servicio: {o.numero_factura_asociada}</span>
                           )}
                         </td>
                         <td className="p-3 text-right space-x-1">
@@ -1541,7 +1545,7 @@ function MainApp() {
         {tab === 'facturacion' && permisos.facturar && (
           <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl space-y-4">
             <div className="flex justify-between items-center flex-wrap gap-3">
-              <h2 className="text-xl font-bold text-white">Remisiones y Ventas</h2>
+              <h2 className="text-xl font-bold text-white">Órdenes de Servicio y Ventas</h2>
               <div className="flex items-center gap-2 flex-wrap">
                 <button 
                   onClick={toggleOcultarUtilidad} 
@@ -1606,9 +1610,9 @@ function MainApp() {
               <table className="w-full text-left text-xs text-slate-300">
                 <thead className="bg-slate-800 text-slate-400 uppercase">
                   <tr>
-                    <th className="p-3">Remisión N°</th>
+                    <th className="p-3">Orden de Servicio N°</th>
                     <th className="p-3">Fecha</th>
-                    <th className="p-3">Cliente / Vendedor</th>
+                    <th className="p-3">Cliente / Asesor</th>
                     <th className="p-3">Total Venta</th>
                     {!ocultarUtilidad && <th className="p-3">Utilidad</th>}
                     <th className="p-3 text-right">Detalle</th>
@@ -1636,7 +1640,7 @@ function MainApp() {
                       return (
                         <tr>
                           <td colSpan={ocultarUtilidad ? 5 : 6} className="text-center py-8 text-slate-400">
-                            No se encontraron remisiones o ventas en el rango de fechas seleccionado.
+                            No se encontraron órdenes de servicio o ventas en el rango de fechas seleccionado.
                           </td>
                         </tr>
                       );
@@ -1656,7 +1660,7 @@ function MainApp() {
                           <td className="p-3 text-slate-400">{f.fecha}</td>
                           <td className="p-3 font-medium text-white">
                             {f.cliente_nombre}
-                            <span className="block text-[10px] text-indigo-300 font-semibold mt-0.5">👤 Vendedor: {f.usuario_creador || 'Sistema'}</span>
+                            <span className="block text-[10px] text-indigo-300 font-semibold mt-0.5">👤 Asesor: {f.usuario_creador || 'Sistema'}</span>
                           </td>
                           <td className={`p-3 font-extrabold ${facturaEstaCancelada(f) ? 'text-rose-300 line-through' : 'text-white'}`}>$ {totalVenta.toLocaleString('es-CO')}</td>
                           
@@ -1712,8 +1716,8 @@ function MainApp() {
               </div>
             ) : (
               <div className="bg-white text-slate-900 rounded-2xl p-8 max-w-4xl mx-auto space-y-5" id="documento-cotizacion">
-                <div className="flex justify-between gap-4 border-b pb-4"><div>{empresa.logoUrl&&<img src={empresa.logoUrl} alt="Logo" className="w-20 h-20 object-contain"/>}<h2 className="text-2xl font-black">{empresa.nombre}</h2><p>{empresa.direccion} · {empresa.telefono}</p></div><div className="text-right"><h3 className="text-xl font-black">COTIZACIÓN</h3><p className="font-bold">{cotizacionActiva.numero_cotizacion}</p><p>{String(cotizacionActiva.fecha||'').slice(0,10)}</p><p>{cotizacionActiva.tipo==='MULTIPLE'?'Cotización múltiple':'Cotización individual'}</p></div></div>
-                <div><p><b>Cliente:</b> {cotizacionActiva.cliente_nombre}</p><p><b>Teléfono:</b> {cotizacionActiva.cliente_telefono}</p>{cotizacionActiva.cliente_cedula&&<p><b>Cédula:</b> {cotizacionActiva.cliente_cedula}</p>}{cotizacionActiva.vigencia&&<p><b>Vigente hasta:</b> {cotizacionActiva.vigencia}</p>}</div>
+                <div className="flex justify-between gap-4 border-b pb-4"><div>{empresa.logoUrl&&<img src={empresa.logoUrl} alt="Logo" className="w-20 h-20 object-contain"/>}<h2 className="text-2xl font-black">{empresa.nombre}</h2>{(empresa.direccion || empresa.telefono || empresa.email) && <p>{[empresa.direccion, empresa.telefono, empresa.email].filter(Boolean).join(' · ')}</p>}</div><div className="text-right"><h3 className="text-xl font-black">COTIZACIÓN</h3><p className="font-bold">{cotizacionActiva.numero_cotizacion}</p><p>{String(cotizacionActiva.fecha||'').slice(0,10)}</p><p>{cotizacionActiva.tipo==='MULTIPLE'?'Cotización múltiple':'Cotización individual'}</p></div></div>
+                <div><p><b>Cliente:</b> {cotizacionActiva.cliente_nombre}</p><p><b>Teléfono:</b> {cotizacionActiva.cliente_telefono}</p>{cotizacionActiva.cliente_cedula&&<p><b>Cédula:</b> {cotizacionActiva.cliente_cedula}</p>}{cotizacionActiva.cliente_email&&<p><b>Correo:</b> {cotizacionActiva.cliente_email}</p>}{cotizacionActiva.cliente_direccion&&<p><b>Dirección:</b> {cotizacionActiva.cliente_direccion}</p>}{cotizacionActiva.vigencia&&<p><b>Vigente hasta:</b> {cotizacionActiva.vigencia}</p>}</div>
                 {(cotizacionActiva.opciones||[]).map((op,i)=><div key={i} className="border rounded-lg p-4"><h3 className="font-black text-lg mb-2">{cotizacionActiva.tipo==='MULTIPLE'?op.nombre:'Detalle de cotización'}</h3><table className="w-full text-sm border-collapse"><thead><tr className="bg-slate-100"><th className="text-left p-2 border">Descripción</th><th className="p-2 border">Cant.</th><th className="text-right p-2 border">Valor unitario</th><th className="text-right p-2 border">Subtotal</th></tr></thead><tbody>{(op.items||[]).map((it,j)=><tr key={j}><td className="p-2 border">{it.descripcion}</td><td className="p-2 border text-center">{it.cantidad}</td><td className="p-2 border text-right">$ {Number(it.precio).toLocaleString('es-CO')}</td><td className="p-2 border text-right">$ {Number(it.subtotal).toLocaleString('es-CO')}</td></tr>)}</tbody></table><p className="text-right font-black text-lg mt-3">Total: $ {Number(op.total||0).toLocaleString('es-CO')}</p></div>)}
                 <div className="flex flex-wrap justify-end gap-2 no-imprimir"><button onClick={()=>setCotizacionActiva(null)} className="bg-slate-200 px-3 py-2 rounded-lg text-xs font-bold">Volver al historial</button><button onClick={()=>window.print()} className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-xs font-bold">Imprimir / Guardar PDF</button><button onClick={()=>{const tel=normalizarTelefonoWhatsApp(cotizacionActiva.cliente_telefono);if(!tel){alert('El cliente no tiene teléfono válido para WhatsApp.');return;}const resumen=(cotizacionActiva.opciones||[]).map((op,i)=>`${cotizacionActiva.tipo==='MULTIPLE'?op.nombre:'Total'}: $ ${Number(op.total||0).toLocaleString('es-CO')}`).join('\n');const msg=`Hola ${cotizacionActiva.cliente_nombre}, te compartimos la cotización ${cotizacionActiva.numero_cotizacion} de ${empresa.nombre}.\n${resumen}\nPuedes solicitar el documento completo por este medio.`;window.open(`https://wa.me/${tel}?text=${encodeURIComponent(msg)}`,'_blank','noopener,noreferrer');}} className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-xs font-bold">Enviar por WhatsApp</button></div>
               </div>
@@ -1854,7 +1858,7 @@ function MainApp() {
                 <p><strong className="text-white">Diagnóstico Técnico:</strong> {clienteSeleccionado.diagnostico || 'Equipo en proceso de revisión.'}</p>
                 
                 {clienteSeleccionado.numero_factura_asociada && (
-                  <p><strong className="text-indigo-400">Remisión Asociada:</strong> <span className="text-indigo-300 font-mono font-bold">{clienteSeleccionado.numero_factura_asociada}</span></p>
+                  <p><strong className="text-indigo-400">Orden de Servicio Asociada:</strong> <span className="text-indigo-300 font-mono font-bold">{clienteSeleccionado.numero_factura_asociada}</span></p>
                 )}
 
                 {Number(clienteSeleccionado.valor_estimado) > 0 && (
@@ -1996,7 +2000,7 @@ function MainApp() {
                                 const updated = { ...currentPerms, cancelar_remision: e.target.checked };
                                 setRoles(roles.map(rol => rol.id === r.id ? { ...rol, permisos: updated } : rol));
                               }}
-                            /> Cancelar remisiones
+                            /> Cancelar órdenes de servicio
                           </label>
                           <label className="flex items-center gap-2">
                             <input 
@@ -2023,7 +2027,7 @@ function MainApp() {
                   <label className="flex items-center gap-2"><input type="checkbox" checked={formNuevoRol.permisos.editar_diagnostico} onChange={e => setFormNuevoRol({ ...formNuevoRol, permisos: { ...formNuevoRol.permisos, editar_diagnostico: e.target.checked } })} /> Modificar Diagnóstico</label>
                   <label className="flex items-center gap-2"><input type="checkbox" checked={formNuevoRol.permisos.ver_clientes} onChange={e => setFormNuevoRol({ ...formNuevoRol, permisos: { ...formNuevoRol.permisos, ver_clientes: e.target.checked } })} /> Ver Clientes</label>
                   <label className="flex items-center gap-2"><input type="checkbox" checked={formNuevoRol.permisos.facturar} onChange={e => setFormNuevoRol({ ...formNuevoRol, permisos: { ...formNuevoRol.permisos, facturar: e.target.checked } })} /> Remisiones, Ventas y Compras</label>
-                  <label className="flex items-center gap-2"><input type="checkbox" checked={!!formNuevoRol.permisos.cancelar_remision} onChange={e => setFormNuevoRol({ ...formNuevoRol, permisos: { ...formNuevoRol.permisos, cancelar_remision: e.target.checked } })} /> Cancelar remisiones</label>
+                  <label className="flex items-center gap-2"><input type="checkbox" checked={!!formNuevoRol.permisos.cancelar_remision} onChange={e => setFormNuevoRol({ ...formNuevoRol, permisos: { ...formNuevoRol.permisos, cancelar_remision: e.target.checked } })} /> Cancelar órdenes de servicio</label>
                   <label className="flex items-center gap-2"><input type="checkbox" checked={formNuevoRol.permisos.ver_configuracion} onChange={e => setFormNuevoRol({ ...formNuevoRol, permisos: { ...formNuevoRol.permisos, ver_configuracion: e.target.checked } })} /> Configuración</label>
                 </div>
                 <button onClick={async () => { if (!formNuevoRol.nombre) return alert('Ingresa un nombre para el rol.'); await agregarRol(formNuevoRol.nombre, formNuevoRol.permisos); alert('Rol creado con éxito'); setFormNuevoRol({ nombre: '', permisos: { crear_orden: true, editar_diagnostico: true, ver_clientes: true, editar_clientes: true, facturar: true, cancelar_remision: false, ver_configuracion: true } }); }} className="bg-indigo-600 text-white px-4 py-2 rounded-xl font-bold">Guardar Nuevo Rol</button>
@@ -2193,7 +2197,7 @@ function MainApp() {
       {modalVenta && (
         <div className="fixed inset-0 bg-slate-950/80 flex items-center justify-center p-4 z-50 no-imprimir">
           <div className="bg-slate-900 border border-slate-800 w-full max-w-lg p-6 rounded-2xl space-y-4 max-h-[90vh] overflow-y-auto">
-            <h3 className="font-bold text-white text-base">Emitir Venta / Remisión Directa</h3>
+            <h3 className="font-bold text-white text-base">Emitir Venta / Orden de Servicio Directa</h3>
             
             <div className="space-y-2">
               <label className="text-xs font-bold text-indigo-400 uppercase">Cliente</label>
@@ -2322,10 +2326,10 @@ function MainApp() {
                 const fac = await agregarVentaDirecta(clienteFinalObj, itemsVenta, total, costoCompraTotal, nombreUsrActual, garantiaVentaAplica, garantiaVentaTiempo);
                 setModalVenta(false);
                 if(fac) {
-                  alert('¡Remisión creada con éxito!');
+                  alert('¡Orden de Servicio creada con éxito!');
                   setDocumentoImprimir({ tipo: 'FACTURA', data: fac });
                 }
-              }} className="bg-emerald-600 text-white px-4 py-1.5 rounded-xl text-xs font-bold">Generar Remisión</button>
+              }} className="bg-emerald-600 text-white px-4 py-1.5 rounded-xl text-xs font-bold">Generar Orden de Servicio</button>
             </div>
           </div>
         </div>
@@ -2340,7 +2344,7 @@ function MainApp() {
             <div className="bg-slate-800/50 p-3 rounded-xl border border-slate-700 space-y-2">
               <label className="flex items-center gap-2 text-xs font-bold text-emerald-400 cursor-pointer">
                 <input type="checkbox" className="w-4 h-4 accent-emerald-600" checked={!!modalRemisionarOrden.garantiaAplica} onChange={e => setModalRemisionarOrden({ ...modalRemisionarOrden, garantiaAplica: e.target.checked, garantiaTiempo: e.target.checked ? (modalRemisionarOrden.garantiaTiempo || '') : '' })} />
-                ✓ ¿La remisión tiene garantía?
+                ✓ ¿La orden de servicio tiene garantía?
               </label>
               {modalRemisionarOrden.garantiaAplica && (
                 <div>
@@ -2362,7 +2366,7 @@ function MainApp() {
                   <option key={c.id} value={c.id}>{c.descripcion_producto} (Venta sugerida: ${c.precio_venta_sugerido})</option>
                 ))}
               </select>
-              <p className="text-[11px] text-slate-500">Nota: El producto seleccionado se sumará al total de la remisión del cliente y su costo se restará en informes internos para calcular tu utilidad real.</p>
+              <p className="text-[11px] text-slate-500">Nota: El producto seleccionado se sumará al total de la orden de servicio del cliente y su costo se restará en informes internos para calcular tu utilidad real.</p>
             </div>
 
             <div className="flex justify-end gap-2 pt-3">
@@ -2378,10 +2382,10 @@ function MainApp() {
                 const fac = await remisionarOrden(modalRemisionarOrden.orden, nombreUsrActual, itemCompraObj, modalRemisionarOrden.garantiaAplica, modalRemisionarOrden.garantiaTiempo);
                 setModalRemisionarOrden(null);
                 if(fac){
-                  alert('¡Remisión Generada Correctamente!');
+                  alert('¡Orden de Servicio Generada Correctamente!');
                   setDocumentoImprimir({ tipo: 'FACTURA', data: fac });
                 }
-              }} className="bg-emerald-600 text-white px-4 py-2 rounded-xl text-xs font-bold">Confirmar y Generar Remisión</button>
+              }} className="bg-emerald-600 text-white px-4 py-2 rounded-xl text-xs font-bold">Confirmar y Generar Orden de Servicio</button>
             </div>
           </div>
         </div>
@@ -2468,19 +2472,19 @@ function MainApp() {
             <div className="flex items-start gap-3">
               <div className="bg-rose-950 text-rose-300 rounded-xl p-3 text-xl">⛔</div>
               <div>
-                <h3 className="font-black text-white text-lg">Cancelar remisión {modalCancelarRemision.factura.numero_factura}</h3>
+                <h3 className="font-black text-white text-lg">Cancelar orden de servicio {modalCancelarRemision.factura.numero_factura}</h3>
                 <p className="text-xs text-slate-400 mt-1">Cliente: {modalCancelarRemision.factura.cliente_nombre}</p>
               </div>
             </div>
             <div className="bg-amber-950/40 border border-amber-700/60 p-3 rounded-xl text-xs text-amber-200">
-              La remisión no se eliminará. Quedará marcada como cancelada y se guardarán el usuario, la fecha y el motivo en su historial.
+              La orden de servicio no se eliminará. Quedará marcada como cancelada y se guardarán el usuario, la fecha y el motivo en su historial.
             </div>
             <div>
               <label className="block text-xs font-bold text-slate-300 mb-1">Motivo de cancelación (obligatorio)</label>
               <textarea
                 value={modalCancelarRemision.motivo}
                 onChange={e => setModalCancelarRemision({ ...modalCancelarRemision, motivo: e.target.value })}
-                placeholder="Ej. Precio incorrecto, datos equivocados, remisión duplicada..."
+                placeholder="Ej. Precio incorrecto, datos equivocados, orden de servicio duplicada..."
                 rows={3}
                 className="w-full bg-slate-800 border border-slate-700 focus:border-rose-500 p-3 rounded-xl text-sm text-white outline-none resize-y"
               />
@@ -2497,7 +2501,7 @@ function MainApp() {
                     setModalCancelarRemision(null);
                     if (facturaSeleccionada?.id === resultado.id) setFacturaSeleccionada(resultado);
                     if (documentoImprimir?.data?.id === resultado.id) setDocumentoImprimir({ ...documentoImprimir, data: resultado });
-                    alert(`La remisión ${resultado.numero_factura} quedó cancelada y registrada en su historial.`);
+                    alert(`La orden de servicio ${resultado.numero_factura} quedó cancelada y registrada en su historial.`);
                   }
                 }}
                 className="bg-rose-700 hover:bg-rose-600 text-white px-4 py-2 rounded-xl text-xs font-black"
@@ -2511,11 +2515,11 @@ function MainApp() {
         <div className="fixed inset-0 bg-slate-950/90 flex items-center justify-center p-4 z-[80] no-imprimir">
           <div className="bg-slate-900 border border-amber-700/60 w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 rounded-2xl space-y-4 shadow-2xl">
             <div>
-              <h3 className="text-lg font-black text-white">Modificar remisión {modalEditarRemision.factura.numero_factura}</h3>
+              <h3 className="text-lg font-black text-white">Modificar orden de servicio {modalEditarRemision.factura.numero_factura}</h3>
               <p className="text-xs text-amber-300 mt-1">Cambio excepcional. Se conservará un historial interno de la modificación.</p>
             </div>
             <div className="space-y-3">
-              <div className="flex justify-between items-center"><label className="text-xs font-bold text-slate-300">Ítems de la remisión</label><button onClick={() => setModalEditarRemision(p => ({...p,items:[...p.items,{descripcion:'',cantidad:1,precio:0}]}))} className="text-xs text-cyan-300 font-bold">+ Agregar ítem</button></div>
+              <div className="flex justify-between items-center"><label className="text-xs font-bold text-slate-300">Ítems de la orden de servicio</label><button onClick={() => setModalEditarRemision(p => ({...p,items:[...p.items,{descripcion:'',cantidad:1,precio:0}]}))} className="text-xs text-cyan-300 font-bold">+ Agregar ítem</button></div>
               {modalEditarRemision.items.map((it,i) => <div key={i} className="grid grid-cols-12 gap-2 items-center">
                 <input value={it.descripcion} onChange={e=>setModalEditarRemision(p=>({...p,items:p.items.map((x,j)=>j===i?{...x,descripcion:e.target.value}:x)}))} placeholder="Descripción" className="col-span-6 bg-slate-800 border border-slate-700 p-2 rounded-lg text-xs text-white"/>
                 <input type="number" min="1" value={it.cantidad} onChange={e=>setModalEditarRemision(p=>({...p,items:p.items.map((x,j)=>j===i?{...x,cantidad:Math.max(1,Number(e.target.value)||1)}:x)}))} className="col-span-2 bg-slate-800 border border-slate-700 p-2 rounded-lg text-xs text-white"/>
@@ -2528,7 +2532,7 @@ function MainApp() {
             </div>
             <div className="border-t border-slate-700 pt-3 space-y-3">
               <div><label className="block text-xs font-bold text-slate-300 mb-1">Contraseña del usuario que autoriza</label><input type="password" value={modalEditarRemision.password} onChange={e=>setModalEditarRemision(p=>({...p,password:e.target.value}))} className="w-full bg-slate-800 border border-slate-700 p-2.5 rounded-lg text-xs text-white" placeholder="Confirma tu contraseña"/></div>
-              <div><label className="block text-xs font-bold text-slate-300 mb-1">Motivo interno del cambio (obligatorio)</label><textarea rows={3} value={modalEditarRemision.motivo} onChange={e=>setModalEditarRemision(p=>({...p,motivo:e.target.value}))} className="w-full bg-slate-800 border border-slate-700 p-2.5 rounded-lg text-xs text-white" placeholder="Explica por qué se modifica esta remisión. No se imprime."/></div>
+              <div><label className="block text-xs font-bold text-slate-300 mb-1">Motivo interno del cambio (obligatorio)</label><textarea rows={3} value={modalEditarRemision.motivo} onChange={e=>setModalEditarRemision(p=>({...p,motivo:e.target.value}))} className="w-full bg-slate-800 border border-slate-700 p-2.5 rounded-lg text-xs text-white" placeholder="Explica por qué se modifica esta orden de servicio. No se imprime."/></div>
             </div>
             <div className="flex justify-end gap-2"><button onClick={()=>setModalEditarRemision(null)} className="px-4 py-2 rounded-xl text-xs text-slate-300">Cancelar</button><button onClick={async()=>{
               const m=modalEditarRemision; const motivo=String(m.motivo||'').trim();
@@ -2547,7 +2551,7 @@ function MainApp() {
               const { data: facturasActualizadas, error: errorRecarga } = await supabase
                 .from('facturas').select('*').order('id', { ascending: false });
               if (errorRecarga) {
-                console.error('La remisión se guardó, pero no se pudo recargar la lista:', errorRecarga);
+                console.error('La orden de servicio se guardó, pero no se pudo recargar la lista:', errorRecarga);
                 setFacturas(prev => prev.map(f => f.id === data.id ? data : f));
               } else if (facturasActualizadas) {
                 setFacturas(facturasActualizadas);
@@ -2557,7 +2561,7 @@ function MainApp() {
               // El modal se desmonta y la lista queda visible en la misma posición.
               requestAnimationFrame(() => {
                 window.scrollTo({ top: scrollRemisionAntesEditar, behavior: 'auto' });
-                alert('¡Cambio realizado con éxito! La remisión fue actualizada.');
+                alert('¡Cambio realizado con éxito! La orden de servicio fue actualizada.');
                 requestAnimationFrame(() => window.scrollTo({ top: scrollRemisionAntesEditar, behavior: 'auto' }));
               });
             }} className="bg-emerald-600 hover:bg-emerald-500 px-4 py-2 rounded-xl text-xs font-black text-white">Validar y guardar cambios</button></div>
@@ -2574,13 +2578,13 @@ function MainApp() {
             </div>
             <p className="text-xs text-slate-300"><strong>Cliente:</strong> {facturaSeleccionada.cliente_nombre}</p>
             <p className="text-xs text-slate-300"><strong>Teléfono:</strong> {facturaSeleccionada.cliente_telefono || 'N/A'}</p>
-            <p className="text-xs text-slate-300"><strong>Vendedor:</strong> <span className="text-indigo-300 font-semibold">{facturaSeleccionada.usuario_creador || 'Sistema'}</span></p>
+            <p className="text-xs text-slate-300"><strong>Asesor:</strong> <span className="text-indigo-300 font-semibold">{facturaSeleccionada.usuario_creador || 'Sistema'}</span></p>
             <p className="text-xs text-slate-300"><strong>Tipo Operación:</strong> {facturaSeleccionada.tipo}</p>
             {facturaEstaCancelada(facturaSeleccionada) && (() => {
               const cancelacion = obtenerCancelacionFactura(facturaSeleccionada);
               return (
                 <div className="bg-rose-950/50 border border-rose-700 rounded-xl p-3 space-y-1">
-                  <p className="text-rose-300 font-black text-sm">⛔ REMISIÓN CANCELADA</p>
+                  <p className="text-rose-300 font-black text-sm">⛔ ORDEN DE SERVICIO CANCELADA</p>
                   <p className="text-xs text-slate-200"><strong>Motivo:</strong> {cancelacion.motivo}</p>
                   <p className="text-xs text-slate-400"><strong>Cancelada por:</strong> {cancelacion.usuario || 'Usuario'}</p>
                   <p className="text-xs text-slate-400"><strong>Fecha y hora:</strong> {cancelacion.fecha ? new Date(cancelacion.fecha).toLocaleString('es-CO') : 'No registrada'}</p>
@@ -2612,7 +2616,7 @@ function MainApp() {
 
             { !facturaEstaCancelada(facturaSeleccionada) && (
               <div className="bg-amber-950/30 border border-amber-700/40 rounded-xl p-3 text-[11px] text-amber-200">
-                Si necesitas corregir una remisión ya emitida, el sistema solicitará contraseña y motivo. El motivo quedará como registro interno y no aparecerá en el documento del cliente.
+                Si necesitas corregir una orden de servicio ya emitida, el sistema solicitará contraseña y motivo. El motivo quedará como registro interno y no aparecerá en el documento del cliente.
               </div>
             )}
             <div className="flex justify-end gap-2 pt-2">
@@ -2621,7 +2625,7 @@ function MainApp() {
                 const items = (facturaSeleccionada.items || []).filter(it => it && !it._tipo);
                 setModalEditarRemision({ factura: facturaSeleccionada, items: items.map(it => ({ descripcion: it.descripcion || '', cantidad: Number(it.cantidad) || 1, precio: Number(it.precio) || 0 })), costo: Number(facturaSeleccionada.costo_compra) || 0, password: '', motivo: '' });
                 setFacturaSeleccionada(null);
-              }} className="bg-amber-600 hover:bg-amber-500 text-white px-4 py-1.5 rounded-xl text-xs font-bold">✏️ Modificar remisión</button>}
+              }} className="bg-amber-600 hover:bg-amber-500 text-white px-4 py-1.5 rounded-xl text-xs font-bold">✏️ Modificar orden de servicio</button>}
               <button onClick={() => setFacturaSeleccionada(null)} className="bg-slate-800 text-white px-4 py-1.5 rounded-xl text-xs font-bold">Cerrar</button>
             </div>
           </div>
@@ -2642,11 +2646,12 @@ function MainApp() {
                   )}
                   <div>
                     <h1 className="font-black text-2xl leading-tight">{empresa.nombre}</h1>
-                    <p className="text-sm text-slate-600">Tel: {empresa.telefono || 'N/A'} | Email: {empresa.email || 'N/A'}</p>
+                    {(empresa.telefono || empresa.email) && <p className="text-sm text-slate-600">{empresa.telefono ? `Tel: ${empresa.telefono}` : ''}{empresa.telefono && empresa.email ? ' | ' : ''}{empresa.email ? `Email: ${empresa.email}` : ''}</p>}
+                    {empresa.direccion && <p className="text-sm text-slate-600">{empresa.direccion}</p>}
                   </div>
                 </div>
                 <h2 className="font-extrabold text-indigo-700 uppercase text-right text-xl shrink-0">
-                  {documentoImprimir.tipo === 'FACTURA' ? 'REMISIÓN' : 'ORDEN DE ENTRADA'}
+                  {documentoImprimir.tipo === 'FACTURA' ? 'ORDEN DE SERVICIO' : 'ORDEN DE ENTRADA'}
                 </h2>
               </div>
 
@@ -2689,13 +2694,15 @@ function MainApp() {
               {documentoImprimir.tipo === 'FACTURA' && (
                 <div className="space-y-1.5 text-base">
                   <div className="flex justify-between text-lg">
-                    <p><strong>Remisión N°:</strong> <span className="font-black text-indigo-700">{documentoImprimir.data.numero_factura}</span></p>
+                    <p><strong>Orden de Servicio N°:</strong> <span className="font-black text-indigo-700">{documentoImprimir.data.numero_factura}</span></p>
                     <p><strong>Fecha:</strong> {documentoImprimir.data.fecha}</p>
                   </div>
                   <div className="grid grid-cols-2 gap-1">
                     <p><strong>Cliente:</strong> {documentoImprimir.data.cliente_nombre}</p>
-                    <p><strong>Vendedor:</strong> {documentoImprimir.data.usuario_creador || 'Sistema'}</p>
+                    <p><strong>Asesor:</strong> {documentoImprimir.data.usuario_creador || 'Sistema'}</p>
                   </div>
+                  {documentoImprimir.data.cliente_email && <p><strong>Correo:</strong> {documentoImprimir.data.cliente_email}</p>}
+                  {documentoImprimir.data.cliente_direccion && <p><strong>Dirección:</strong> {documentoImprimir.data.cliente_direccion}</p>}
 
                   <table className="w-full text-left border border-slate-300 mt-1 text-base">
                     <thead className="bg-slate-100">
@@ -2751,7 +2758,7 @@ function MainApp() {
                   a.href = url;
                   
                   const nombreArchivo = documentoImprimir.tipo === 'FACTURA' 
-                    ? `Remision_${doc.numero_factura}_${nombreClienteLimpio}_${telefonoLimpio}.html` 
+                    ? `OrdenServicio_${doc.numero_factura}_${nombreClienteLimpio}_${telefonoLimpio}.html` 
                     : `Orden_${documentoImprimir.idConsecutivo || doc.codigo_seguimiento}_${nombreClienteLimpio}_${telefonoLimpio}.html`;
                   
                   a.download = nombreArchivo;
@@ -2761,7 +2768,7 @@ function MainApp() {
 
                   let msg = '';
                   if (documentoImprimir.tipo === 'FACTURA') {
-                    msg = `Hola *${doc.cliente_nombre}* 👋\n\nTe enviamos los detalles de tu Remisión *${doc.numero_factura}* en *${empresa.nombre}*.`;
+                    msg = `Hola *${doc.cliente_nombre}* 👋\n\nTe enviamos los detalles de tu Orden de Servicio *${doc.numero_factura}* en *${empresa.nombre}*.`;
                   } else {
                     msg = `Hola *${doc.cliente_nombre}* 👋\n\nTe enviamos los detalles de tu Orden de Entrada *${documentoImprimir.idConsecutivo || 'N/A'}* en *${empresa.nombre}*.`;
                   }
@@ -2829,7 +2836,7 @@ function PortalPublico() {
             <p className="text-white"><strong>Diagnóstico Técnico:</strong> {ordenConsultaResult.diagnostico || 'Equipo en proceso de revisión.'}</p>
             
             {ordenConsultaResult.numero_factura_asociada && (
-              <p className="text-white"><strong>Remisión Asociada:</strong> <span className="text-indigo-400 font-mono font-bold">{ordenConsultaResult.numero_factura_asociada}</span></p>
+              <p className="text-white"><strong>Orden de Servicio Asociada:</strong> <span className="text-indigo-400 font-mono font-bold">{ordenConsultaResult.numero_factura_asociada}</span></p>
             )}
 
             {Number(ordenConsultaResult.valor_estimado) > 0 && (
